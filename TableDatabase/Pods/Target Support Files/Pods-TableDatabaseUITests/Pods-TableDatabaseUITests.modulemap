@@ -1,0 +1,6 @@
+framework module Pods_TableDatabaseUITests {
+  umbrella header "Pods-TableDatabaseUITests-umbrella.h"
+
+  export *
+  module * { export * }
+}
