@@ -19,6 +19,7 @@
 		A99F638F20B8709D00C0635B /* TableDatabaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99F638E20B8709D00C0635B /* TableDatabaseTests.swift */; };
 		A99F639A20B8709D00C0635B /* TableDatabaseUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99F639920B8709D00C0635B /* TableDatabaseUITests.swift */; };
 		A99F63A820B870BA00C0635B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = A99F63A720B870BA00C0635B /* GoogleService-Info.plist */; };
+		C72CB8FC20C69D39002720AE /* SBDAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C72CB8FB20C69D39002720AE /* SBDAnalyzer.swift */; };
 		FDDB86532A060E23C1AD1D9F /* Pods_TableDatabase.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08A9CF3679353C700699E659 /* Pods_TableDatabase.framework */; };
 /* End PBXBuildFile section */
 
@@ -62,6 +63,7 @@
 		A99F639920B8709D00C0635B /* TableDatabaseUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableDatabaseUITests.swift; sourceTree = "<group>"; };
 		A99F639B20B8709D00C0635B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A99F63A720B870BA00C0635B /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		C72CB8FB20C69D39002720AE /* SBDAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SBDAnalyzer.swift; sourceTree = "<group>"; };
 		E313F44164C7432AA4979C5C /* Pods-TableDatabaseUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TableDatabaseUITests.release.xcconfig"; path = "Pods/Target Support Files/Pods-TableDatabaseUITests/Pods-TableDatabaseUITests.release.xcconfig"; sourceTree = "<group>"; };
 		E34094D201FE0F9A7ECE88FC /* Pods_TableDatabaseTests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_TableDatabaseTests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		F91B2145A7D9F5D4070BA84C /* Pods-TableDatabaseTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TableDatabaseTests.release.xcconfig"; path = "Pods/Target Support Files/Pods-TableDatabaseTests/Pods-TableDatabaseTests.release.xcconfig"; sourceTree = "<group>"; };
@@ -139,6 +141,7 @@
 				A99F638220B8709D00C0635B /* LaunchScreen.storyboard */,
 				A99F638520B8709D00C0635B /* Info.plist */,
 				A99F63A720B870BA00C0635B /* GoogleService-Info.plist */,
+				C72CB8FB20C69D39002720AE /* SBDAnalyzer.swift */,
 			);
 			path = TableDatabase;
 			sourceTree = "<group>";
@@ -389,6 +392,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C72CB8FC20C69D39002720AE /* SBDAnalyzer.swift in Sources */,
 				A9279FC420B905C8000FEC96 /* TableViewCell.swift in Sources */,
 				A9279FC620B90643000FEC96 /* Videos.swift in Sources */,
 				A99F637C20B8709C00C0635B /* ViewController.swift in Sources */,

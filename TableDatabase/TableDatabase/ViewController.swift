@@ -80,6 +80,8 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         let controller = AVPlayerViewController()
         controller.player = player
         
+        SBDAnalyzer.shared.setup(playerVC: controller)
+        
         present(controller, animated: true) {
             player.play()
         }
