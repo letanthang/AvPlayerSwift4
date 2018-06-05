@@ -45,6 +45,8 @@ class SBDAnalyzer: NSObject {
             print(player?.rate)
         case "playbackBufferEmpty":
             print("start buffering")
+        case "playbackLikelyToKeepUp":
+            print("end buffering")
         case "playbackBufferFull":
             print("end buffering")
         default:
