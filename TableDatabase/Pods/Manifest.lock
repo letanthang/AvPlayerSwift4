@@ -30,11 +30,13 @@ PODS:
     - nanopb/encode (= 0.3.8)
   - nanopb/decode (0.3.8)
   - nanopb/encode (0.3.8)
+  - SocketRocket (0.5.1)
 
 DEPENDENCIES:
   - Firebase
   - Firebase/Core
   - Firebase/Database
+  - SocketRocket
 
 SPEC REPOS:
   https://github.com/cocoapods/specs.git:
@@ -46,6 +48,7 @@ SPEC REPOS:
     - GoogleToolboxForMac
     - leveldb-library
     - nanopb
+    - SocketRocket
 
 SPEC CHECKSUMS:
   Firebase: d6861c2059d8c32d1e6dd8932e22ada346d90a3a
@@ -56,7 +59,8 @@ SPEC CHECKSUMS:
   GoogleToolboxForMac: 91c824d21e85b31c2aae9bb011c5027c9b4e738f
   leveldb-library: 08cba283675b7ed2d99629a4bc5fd052cd2bb6a5
   nanopb: 5601e6bca2dbf1ed831b519092ec110f66982ca3
+  SocketRocket: d57c7159b83c3c6655745cd15302aa24b6bae531
 
-PODFILE CHECKSUM: 8de4786e9a3ebe2a12bed81d8f31af749b0505b1
+PODFILE CHECKSUM: d740b646f4bbd9682b94f40c0d14d575da694c47
 
-COCOAPODS: 1.5.2
+COCOAPODS: 1.5.3
