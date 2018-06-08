@@ -23,8 +23,14 @@ class SBDAnalyzer: NSObject {
     var afterInitQueue = [[String: Any]]()
     var viewId: String? = nil
     var session: String? = nil
+    var customInfo: SBDCustomInfo?
+    private var viewInited = false
     
     static let shared = SBDAnalyzer()
+    
+    var playing: Bool = false
+    var buffering: Bool = false
+    var lastActive: Double = 0
     
     private override init() {
         super.init()
@@ -51,12 +57,15 @@ class SBDAnalyzer: NSObject {
         self.playerLayer = playerLayer
         player = playerLayer.player
         observerPlayer()
-        
     }
     public func setup(playerVC: AVPlayerViewController) {
         self.playerVC = playerVC
         player = playerVC.player
         observerPlayer()
+    }
+    
+    func setCustomInfo(customInfo: SBDCustomInfo) {
+        self.customInfo = customInfo
     }
     
     func observerPlayer() {
@@ -79,7 +88,6 @@ class SBDAnalyzer: NSObject {
         default:
             print(keyPath)
         }
-        
     }
     
     func initWS() {
@@ -94,8 +102,50 @@ class SBDAnalyzer: NSObject {
                     self.session = responseJSON?["data"][0].string
                 }
             }
-            
         }
+    }
+    
+    func initView() {
+        guard viewInited == false else {
+            return
+        }
+        viewInited = true
+        print("sbd_" + "initView")
+        var data = [String: Any]()
+        data["envKey"] = customInfo?.envKey
+        data["viewerId"] = customInfo?.viewerId
+        data["playUrl"] = customInfo?.videoUrl
+        data["video"] = customInfo?.getVideoInfo()
+        var json = [String: Any]()
+        json["data"] = data
+        json["type"] = "initView"
+        _ = send(json: json, callback: { (response: String) in
+            if let responseData = response.data(using: .utf8, allowLossyConversion: false) {
+                let responseJSON = try? JSON(data: responseData)
+                if let status = responseJSON?["status"].string, status == "OK" {
+                    print("sbd_" + "initView success")
+                    self.viewId = responseJSON?["data"][0]["id"].string
+                    if self.afterInitQueue.count > 0 {
+                        self.sendAfterInitQueue()
+                    }
+                }
+            }
+            
+        })
+    }
+    func loadPlayer() {
+        var data = [String: Any]()
+        data["eventName"] = "PLAYER_LOAD"
+        _ = sendViewEvent(eventData: data)
+    }
+    func playVideo() {
+        playing = true
+        buffering = false
+        lastActive = Date().timeIntervalSinceNow
+        
+        var data = [String: Any]()
+        data["eventName"] = "PLAY"
+        sendViewEvent(eventData: data)
     }
 }
 
@@ -171,8 +221,7 @@ extension SBDAnalyzer {
                 json["data"] = String(data: tmp, encoding: .utf8)
                 return send(json: json)
             } else {
-                let tmp = try JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
-                json["data"] = String(data: tmp, encoding: .utf8)
+                json["data"] = data
                 afterInitQueue.append(json)
             }
             
@@ -181,6 +230,31 @@ extension SBDAnalyzer {
             return false
         }
         return true
+    }
+    
+    func sendAfterInitQueue() {
+        do {
+            for i in 0...afterInitQueue.count - 1 {
+                var json = afterInitQueue[i]
+                var data: [String: Any] = json["data"] as! [String : Any]
+                data["viewId"] = viewId
+                json["data"] = data
+                let tmp = try JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
+                json["data"] = String(data: tmp, encoding: .utf8)
+            }
+            sendArray(arr: afterInitQueue)
+        } catch {
+            print("Error : \(error)")
+        }
+        
+    }
+    
+    func sendArray(arr: [[String: Any]]) {
+        if let jsonData = try? JSONSerialization.data(withJSONObject: arr, options: .prettyPrinted) {
+            let jsonString = String(data: jsonData, encoding: .utf8)
+            webSocket?.send(jsonString)
+            print("sbd_" + "sendArray " + jsonString!)
+        }
     }
     
     func getUTCDate() -> String {
