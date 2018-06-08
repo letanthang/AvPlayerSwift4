@@ -9,14 +9,17 @@
 import UIKit
 import AVKit
 import SocketRocket
+import SwiftyJSON
 
 class SBDAnalyzer: NSObject {
+    let sdkName = "iOS_SDK"
+    let sdkVersion = "0.1"
     var playerLayer: AVPlayerLayer?
     var playerVC: AVPlayerViewController?
     var player: AVPlayer?
     var webSocket: SRWebSocket?
     var queue = [[String: Any]]()
-    var callbacks = [String: (Data)]()
+    var callbacks = [String: (String) -> Void]()
     var afterInitQueue = [[String: Any]]()
     var viewId: String? = nil
     var session: String? = nil
@@ -25,9 +28,22 @@ class SBDAnalyzer: NSObject {
     
     private override init() {
         super.init()
-        webSocket = SRWebSocket(url: URL(string: "ws://ws.stag-sa.sbd.vn:10080"))
+        //webSocket = SRWebSocket(url: URL(string: "ws://ws.stag-sa.sbd.vn:10080"))
+        
+        let os = "iOS"
+        let osVersion = UIDevice.current.systemVersion
+        let appName = Bundle.main.infoDictionary![kCFBundleNameKey as String] as! String
+        let appVersion = Bundle.main.releaseVersionNumberPretty;
+        let deviceType = "phone"
+        let device = UIDevice.current.name
+        let userAgent = sdkName + "/" + sdkVersion + " " + os + "/" + osVersion + " "
+            + appName + "/" + appVersion + " " + deviceType + "/" + device;
+        
+        var request = URLRequest(url: URL(string: "ws://ws.stag-sa.sbd.vn:10080")!)
+        request.allHTTPHeaderFields = ["user-agent": userAgent]
+        webSocket = SRWebSocket(urlRequest: request)
         webSocket?.delegate = self
-        print("sbd_" + "websocket try to connect")
+        print("sbd_" + "websocket try to connect, user-agent=" + userAgent)
         webSocket?.open()
     }
     
@@ -70,15 +86,23 @@ class SBDAnalyzer: NSObject {
         var json = [String: Any]()
         json["type"] = "initWS"
         json["session"] = session
-        send(json: json)
+        _ = send(json: json) { (response: String) in
+            if let responseData = response.data(using: .utf8, allowLossyConversion: false) {
+                let responseJSON = try? JSON(data: responseData)
+                if let status = responseJSON?["status"].string, status == "OK" {
+                    print("sbd_" + "initWS success")
+                    self.session = responseJSON?["data"][0].string
+                }
+            }
+            
+        }
     }
 }
 
 extension SBDAnalyzer: SRWebSocketDelegate {
     func webSocketDidOpen(_ webSocket: SRWebSocket!) {
         print("sbd_" + "open: you are connected to server: " + webSocket.url.absoluteString)
-        let json = ["type": "initWS"]
-        send(json: json)
+        initWS()
     }
     func webSocket(_ webSocket: SRWebSocket!, didReceiveMessage message: Any!) {
         guard let msg = message as? String else {
@@ -86,6 +110,11 @@ extension SBDAnalyzer: SRWebSocketDelegate {
             return
         }
         print("sbd_" + "message: receive string: " + msg)
+        let data = msg.components(separatedBy: "::")
+        let cbKey = data[0]
+        let respString = data[1];
+        callbacks[cbKey]!(respString)
+        
     }
     func webSocket(_ webSocket: SRWebSocket!, didCloseWithCode code: Int, reason: String!, wasClean: Bool) {
         print("sbd_" + "close webSocket")
@@ -96,7 +125,7 @@ extension SBDAnalyzer: SRWebSocketDelegate {
 }
 
 extension SBDAnalyzer {
-    func send(json: [String: Any], callback: (Data) ) -> Bool {
+    func send(json: [String: Any], callback: @escaping (String) -> Void ) -> Bool {
         let key = NSUUID.init().uuidString
         var js = json
         js["callback"] = key
@@ -104,7 +133,7 @@ extension SBDAnalyzer {
         if (send(json: js)) {
             return true;
         }
-        callbacks[key] = callback
+        callbacks.removeValue(forKey: key)
         return false
     }
     func send(json: [String: Any]) -> Bool {
@@ -115,7 +144,7 @@ extension SBDAnalyzer {
             let arr = [ json ]
             if let jsonData = try? JSONSerialization.data(withJSONObject: arr, options: .prettyPrinted) {
                 let jsonString = String(data: jsonData, encoding: .utf8)
-                webSocket?.send(jsonData)
+                webSocket?.send(jsonString)
                 print("sbd_" + "send initWS " + jsonString!)
             }
         } else {

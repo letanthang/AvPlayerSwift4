@@ -31,12 +31,14 @@ PODS:
   - nanopb/decode (0.3.8)
   - nanopb/encode (0.3.8)
   - SocketRocket (0.5.1)
+  - SwiftyJSON (4.1.0)
 
 DEPENDENCIES:
   - Firebase
   - Firebase/Core
   - Firebase/Database
   - SocketRocket
+  - SwiftyJSON (~> 4.0)
 
 SPEC REPOS:
   https://github.com/cocoapods/specs.git:
@@ -49,6 +51,7 @@ SPEC REPOS:
     - leveldb-library
     - nanopb
     - SocketRocket
+    - SwiftyJSON
 
 SPEC CHECKSUMS:
   Firebase: d6861c2059d8c32d1e6dd8932e22ada346d90a3a
@@ -60,7 +63,8 @@ SPEC CHECKSUMS:
   leveldb-library: 08cba283675b7ed2d99629a4bc5fd052cd2bb6a5
   nanopb: 5601e6bca2dbf1ed831b519092ec110f66982ca3
   SocketRocket: d57c7159b83c3c6655745cd15302aa24b6bae531
+  SwiftyJSON: c29297daf073d2aa016295d5809cdd68045c39b3
 
-PODFILE CHECKSUM: d740b646f4bbd9682b94f40c0d14d575da694c47
+PODFILE CHECKSUM: 34fc3eff90631c9cba88bd820b70427a3bbc8ea2
 
 COCOAPODS: 1.5.3
