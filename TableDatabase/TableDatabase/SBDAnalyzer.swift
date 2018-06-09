@@ -23,6 +23,7 @@ class SBDAnalyzer: NSObject {
     var afterInitQueue = [[String: Any]]()
     var viewId: String? = nil
     var session: String? = nil
+    var sessionReady = false
     var customInfo: SBDCustomInfo?
     private var viewInited = false
     
@@ -31,6 +32,11 @@ class SBDAnalyzer: NSObject {
     var playing: Bool = false
     var buffering: Bool = false
     var lastActive: Double = 0
+    var lastPauseTime: Double = 0
+    var hasStartup = false
+    var lastPlayPosition: Double = 0
+    var endView = false
+    
     
     private override init() {
         super.init()
@@ -73,12 +79,18 @@ class SBDAnalyzer: NSObject {
         player?.currentItem?.addObserver(self, forKeyPath: "playbackBufferEmpty", options: .new, context: nil)
         player?.currentItem?.addObserver(self, forKeyPath: "playbackLikelyToKeepUp", options: .new, context: nil)
         player?.currentItem?.addObserver(self, forKeyPath: "playbackBufferFull", options: .new, context: nil)
+        loadPlayer()
+        startSendWorker()
     }
     
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         switch keyPath {
         case "rate":
-            print(player?.rate)
+            if ((player?.rate)! > 0.999) {
+                realPlayVideo()
+            } else if ((player?.rate)! < 0.001) {
+                pauseVideo()
+            }
         case "playbackBufferEmpty":
             print("start buffering")
         case "playbackLikelyToKeepUp":
@@ -100,6 +112,7 @@ class SBDAnalyzer: NSObject {
                 if let status = responseJSON?["status"].string, status == "OK" {
                     print("sbd_" + "initWS success")
                     self.session = responseJSON?["data"][0].string
+                    self.sessionReady = true
                 }
             }
         }
@@ -117,8 +130,10 @@ class SBDAnalyzer: NSObject {
         data["playUrl"] = customInfo?.videoUrl
         data["video"] = customInfo?.getVideoInfo()
         var json = [String: Any]()
-        json["data"] = data
+        //json["data"] = data
         json["type"] = "initView"
+        let tmp = try? JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
+        json["data"] = String(data: tmp!, encoding: .utf8)
         _ = send(json: json, callback: { (response: String) in
             if let responseData = response.data(using: .utf8, allowLossyConversion: false) {
                 let responseJSON = try? JSON(data: responseData)
@@ -141,18 +156,88 @@ class SBDAnalyzer: NSObject {
     func playVideo() {
         playing = true
         buffering = false
-        lastActive = Date().timeIntervalSinceNow
+        lastActive = Date().timeIntervalSince1970
         
         var data = [String: Any]()
         data["eventName"] = "PLAY"
-        sendViewEvent(eventData: data)
+        _ = sendViewEvent(eventData: data)
     }
+    func pauseVideo() {
+        playing = false
+        lastPauseTime = (player?.currentItem?.currentTime().seconds)!
+        var data = [String: Any]()
+        data["eventName"] = "PAUSE"
+        data["playPosition"] = lastPauseTime
+        _ = sendViewEvent(eventData: data)
+    }
+    func unPauseVideo() {
+        playing = true
+        buffering = false
+        lastActive = Date().timeIntervalSince1970
+        var data = [String: Any]()
+        data["eventName"] = "PAUSE"
+        data["playPosition"] = player?.currentItem?.currentTime().seconds
+        _ = sendViewEvent(eventData: data)
+    }
+    func realPlayVideo() {
+        
+        var data = [String: Any]()
+        data["eventName"] = "PLAYING"
+        data["playPosition"] = player?.currentItem?.currentTime().seconds
+        let startupTime: Double = (Date().timeIntervalSince1970 - lastActive) / 1000.0
+        data["data"] = startupTime
+        
+        hasStartup = true
+        lastActive = 0
+        _ = sendViewEvent(eventData: data)
+    }
+    func bufferVideo() {
+        buffering = true
+        lastActive = Date().timeIntervalSince1970
+        lastPlayPosition = (player?.currentItem?.currentTime().seconds)!
+        var data = [String: Any]()
+        data["eventName"] = "BUFFERING"
+        data["lastPlayPosition"] = lastPlayPosition
+        _ = sendViewEvent(eventData: data)
+    }
+    func resumeVideo() {
+        var data = [String: Any]()
+        data["eventName"] = "SEEKED"
+        _ = sendViewEvent(eventData: data)
+    }
+    
+    func endVideo() {
+        var data = [String: Any]()
+        data["eventName"] = "END"
+        
+        sendViewEvent(eventData: data)
+        lastPlayPosition = 0
+        playing = false
+        buffering = true
+        viewId = nil
+        endView = true
+    }
+    func changeSize(width: Int, height: Int) {
+        var infos = [String: Any]()
+        infos["playerWidth"] = width
+        infos["playerHeight"] = height
+        infos["videoWidth"] = width
+        infos["videoHeight"] = height
+        
+        var data = [String: Any]()
+        data["eventName"] = "DIMENSION"
+        data["infos"] = infos
+        _ = sendViewEvent(eventData: data)
+        
+    }
+    
 }
 
 extension SBDAnalyzer: SRWebSocketDelegate {
     func webSocketDidOpen(_ webSocket: SRWebSocket!) {
         print("sbd_" + "open: you are connected to server: " + webSocket.url.absoluteString)
         initWS()
+        initView()
     }
     func webSocket(_ webSocket: SRWebSocket!, didReceiveMessage message: Any!) {
         guard let msg = message as? String else {
@@ -198,6 +283,7 @@ extension SBDAnalyzer {
                 print("sbd_" + "send initWS " + jsonString!)
             }
         } else {
+            print("sbd_" + "add to queue: " + type)
             queue.append(json)
         }
         return true
@@ -210,7 +296,7 @@ extension SBDAnalyzer {
                 data["date"] = getUTCDate()
             }
             if (data["playPosition"] == nil) {
-                data["playPosition"] = player?.currentItem?.currentTime()
+                data["playPosition"] = player?.currentItem?.currentTime().seconds
             }
             var json = [String: Any]()
             json["type"] = "event"
@@ -237,12 +323,15 @@ extension SBDAnalyzer {
             for i in 0...afterInitQueue.count - 1 {
                 var json = afterInitQueue[i]
                 var data: [String: Any] = json["data"] as! [String : Any]
+                
                 data["viewId"] = viewId
-                json["data"] = data
+                json.removeValue(forKey: "data")
+                //json["data"] = data
                 let tmp = try JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
                 json["data"] = String(data: tmp, encoding: .utf8)
             }
             sendArray(arr: afterInitQueue)
+            afterInitQueue = [[String: Any]]()
         } catch {
             print("Error : \(error)")
         }
@@ -250,11 +339,30 @@ extension SBDAnalyzer {
     }
     
     func sendArray(arr: [[String: Any]]) {
+        
         if let jsonData = try? JSONSerialization.data(withJSONObject: arr, options: .prettyPrinted) {
             let jsonString = String(data: jsonData, encoding: .utf8)
             webSocket?.send(jsonString)
             print("sbd_" + "sendArray " + jsonString!)
         }
+    }
+    func startSendWorker() {
+        print("sbd_" + "start sworker")
+        var timer = Timer.scheduledTimer(timeInterval: 0.5, target: self, selector: #selector(sendWorker), userInfo: nil, repeats: true)
+        
+    }
+    @objc func sendWorker() {
+        print("sbd_" + "send workder")
+        guard queue.count > 0 && webSocket?.readyState == SRReadyState.OPEN && sessionReady else {
+            if queue.count == 0 {
+                print("sbd_" + "queue has nothing to send")
+            }
+            print("queue not send: websocket or session not ready")
+            return
+        }
+        print("sbd_" + "send worker data")
+        sendArray(arr: queue)
+        queue = [[String: Any]]()
     }
     
     func getUTCDate() -> String {
