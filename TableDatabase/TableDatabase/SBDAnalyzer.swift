@@ -73,8 +73,16 @@ class SBDAnalyzer: NSObject {
     func setCustomInfo(customInfo: SBDCustomInfo) {
         self.customInfo = customInfo
     }
-    
+    @objc func playerDidFinishPlaying(note: NSNotification) {
+        endVideo()
+    }
     func observerPlayer() {
+        
+        NotificationCenter.default.addObserver(self, selector:#selector(playerDidFinishPlaying(note:)),
+                                               name: NSNotification.Name.AVPlayerItemDidPlayToEndTime, object: player?.currentItem)
+        
+        
+        
         player?.addObserver(self, forKeyPath: "rate", options: .new, context: nil)
         player?.currentItem?.addObserver(self, forKeyPath: "playbackBufferEmpty", options: .new, context: nil)
         player?.currentItem?.addObserver(self, forKeyPath: "playbackLikelyToKeepUp", options: .new, context: nil)
@@ -84,6 +92,7 @@ class SBDAnalyzer: NSObject {
     }
     
     override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        
         switch keyPath {
         case "rate":
             if ((player?.rate)! > 0.999) {
@@ -92,13 +101,22 @@ class SBDAnalyzer: NSObject {
                 pauseVideo()
             }
         case "playbackBufferEmpty":
-            print("start buffering")
+            bufferVideo()
         case "playbackLikelyToKeepUp":
-            print("end buffering")
+            if (player?.currentItem?.status == AVPlayerItemStatus.readyToPlay) {
+                resumeVideo()
+            } else if (player?.currentItem?.status == AVPlayerItemStatus.failed) {
+                print("sbd_failed")
+            } else if (player?.currentItem?.status == AVPlayerItemStatus.unknown) {
+                print("sbd_unknown")
+            } else {
+                print("sbd_abcxy")
+            }
+            
         case "playbackBufferFull":
-            print("end buffering")
+            realPlayVideo()
         default:
-            print(keyPath)
+            print("sbd_" + (keyPath)!)
         }
     }
     
@@ -352,12 +370,12 @@ extension SBDAnalyzer {
         
     }
     @objc func sendWorker() {
-        print("sbd_" + "send workder")
+        //print("sbd_" + "send worker")
         guard queue.count > 0 && webSocket?.readyState == SRReadyState.OPEN && sessionReady else {
             if queue.count == 0 {
-                print("sbd_" + "queue has nothing to send")
+                //print("sbd_" + "queue has nothing to send")
             }
-            print("queue not send: websocket or session not ready")
+//            print("queue not send: websocket or session not ready")
             return
         }
         print("sbd_" + "send worker data")
