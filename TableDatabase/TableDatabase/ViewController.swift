@@ -39,7 +39,7 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
                     let Title = Object?["Title"]
                     let videolink = Object?["link"]
                     
-                    
+                    print("sbd_debug_" + (videolink as! String))
                     let video = Videos(Title: Title as! String, link: videolink as! String)
                     self.table.append(video)
                     

@@ -104,7 +104,7 @@ class SBDAnalyzer: NSObject {
             bufferVideo()
         case "playbackLikelyToKeepUp":
             if (player?.currentItem?.status == AVPlayerItemStatus.readyToPlay) {
-                resumeVideo()
+                if buffering { resumeVideo() }
             } else if (player?.currentItem?.status == AVPlayerItemStatus.failed) {
                 print("sbd_failed")
             } else if (player?.currentItem?.status == AVPlayerItemStatus.unknown) {
@@ -114,7 +114,8 @@ class SBDAnalyzer: NSObject {
             }
             
         case "playbackBufferFull":
-            realPlayVideo()
+            print("sbd_playbackBufferFull")
+            //realPlayVideo()
         default:
             print("sbd_" + (keyPath)!)
         }
@@ -172,7 +173,7 @@ class SBDAnalyzer: NSObject {
         _ = sendViewEvent(eventData: data)
     }
     func playVideo() {
-        playing = true
+//        playing = true
         buffering = false
         lastActive = Date().timeIntervalSince1970
         
@@ -205,6 +206,7 @@ class SBDAnalyzer: NSObject {
         let startupTime: Double = (Date().timeIntervalSince1970 - lastActive) / 1000.0
         data["data"] = startupTime
         
+        playing = true
         hasStartup = true
         lastActive = 0
         _ = sendViewEvent(eventData: data)
@@ -222,6 +224,7 @@ class SBDAnalyzer: NSObject {
         var data = [String: Any]()
         data["eventName"] = "SEEKED"
         _ = sendViewEvent(eventData: data)
+        buffering = false
     }
     
     func endVideo() {
@@ -310,6 +313,7 @@ extension SBDAnalyzer {
     func sendViewEvent(eventData: [String: Any]) -> Bool {
         var data = eventData;
         do {
+            print("sbd_" + (eventData["eventName"] as! String));
             if (data["date"] == nil) {
                 data["date"] = getUTCDate()
             }
