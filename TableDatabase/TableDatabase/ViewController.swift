@@ -81,7 +81,7 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         controller.player = player
         
         SBDAnalyzer.shared.setup(playerVC: controller)
-        let info = SBDCustomInfo(envKey: "35b1c479db3f1bfa2b11b12b", viewerId: "GUEST")
+        let info = SBDCustomInfo(envKey: "1e38ac32174cba8da2a48a35", viewerId: "GUEST")
         info.videoId = "10d9e218-8176-438d-8a5e-a7b2c6dceb60"
         info.videoTitle = "Sức Mạnh Binh Vận"
         SBDAnalyzer.shared.setCustomInfo(customInfo: info)

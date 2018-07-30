@@ -36,6 +36,10 @@ class SBDAnalyzer: NSObject {
     var hasStartup = false
     var lastPlayPosition: Double = 0
     var endView = false
+    let wsUrl = "ws://ws.sa.sbd.vn:8080"
+  
+    var visitorId: String! = nil
+    var configEnabled = false;
     
     
     private override init() {
@@ -51,7 +55,7 @@ class SBDAnalyzer: NSObject {
         let userAgent = sdkName + "/" + sdkVersion + " " + os + "/" + osVersion + " "
             + appName + "/" + appVersion + " " + deviceType + "/" + device;
         
-        var request = URLRequest(url: URL(string: "ws://ws.stag-sa.sbd.vn:10080")!)
+        var request = URLRequest(url: URL(string: wsUrl)!)
         request.allHTTPHeaderFields = ["user-agent": userAgent]
         webSocket = SRWebSocket(urlRequest: request)
         webSocket?.delegate = self
@@ -397,3 +401,59 @@ extension SBDAnalyzer {
         return formatter.string(from: Date())
     }
 }
+
+extension SBDAnalyzer {
+    func getVisitor() {
+        if visitorId != nil {
+            return
+        }
+        loadVisitor()
+        if visitorId != nil {
+            return
+        }
+        let todoEndpoint: String = "http://api.sa.sbd.vn/visitor"
+        guard let url = URL(string: todoEndpoint) else {
+            print("Error: cannot create URL")
+            return
+        }
+        let urlRequest = URLRequest(url: url)
+        let session = URLSession.shared
+        let task = session.dataTask(with: urlRequest) { (data, urlResponse, error) in
+            if let data = data {
+                let responseJSON = try? JSON(data: data)
+                if let status = responseJSON?["status"].string, status == "OK" {
+                    self.visitorId = responseJSON?["data"][0]["id"].string
+                }
+            }
+        }
+        task.resume();
+    }
+    
+    func loadVisitor() {
+        if let vId = UserDefaults.standard.value(forKey: "visitor") as? String {
+            self.visitorId = vId
+        }
+    }
+    
+    func saveVisitor(visitorId: String) {
+        UserDefaults.standard.set(visitorId, forKey: "visitorId")
+    }
+    
+    func checkConfigEnabled() {
+        let todoEndpoint: String = "http://api.thvli.vn/backend/cm/tracking/config/"
+        guard let url = URL(string: todoEndpoint) else {
+            print("Error: cannot create URL")
+            return
+        }
+        let urlRequest = URLRequest(url: url)
+        let session = URLSession.shared
+        let task = session.dataTask(with: urlRequest) { (data, urlResponse, error) in
+            if let data = data {
+                let responseJSON = try? JSON(data: data)
+                self.configEnabled = (responseJSON?["enable"].bool)! && (responseJSON?["partners"]["qos"].bool)!
+            }
+        }
+        task.resume();
+    }
+}
+
