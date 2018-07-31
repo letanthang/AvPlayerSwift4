@@ -37,15 +37,19 @@ class SBDAnalyzer: NSObject {
     var lastPlayPosition: Double = 0
     var endView = false
     let wsUrl = "ws://ws.sa.sbd.vn:8080"
-  
+    
+    var workerTimer: Timer! = nil
+    var notSendCount = 0
+    
     var visitorId: String! = nil
     var configEnabled = false;
-    
+    var checked = false;
     
     private override init() {
         super.init()
         //webSocket = SRWebSocket(url: URL(string: "ws://ws.stag-sa.sbd.vn:10080"))
-        
+        checkConfigEnabled()
+        getVisitor()
         let os = "iOS"
         let osVersion = UIDevice.current.systemVersion
         let appName = Bundle.main.infoDictionary![kCFBundleNameKey as String] as! String
@@ -122,6 +126,13 @@ class SBDAnalyzer: NSObject {
             //realPlayVideo()
         default:
             print("sbd_" + (keyPath)!)
+        }
+    }
+    
+    func onWSConnected() {
+        if (configEnabled) {
+            initWS()
+            initView()
         }
     }
     
@@ -261,8 +272,7 @@ class SBDAnalyzer: NSObject {
 extension SBDAnalyzer: SRWebSocketDelegate {
     func webSocketDidOpen(_ webSocket: SRWebSocket!) {
         print("sbd_" + "open: you are connected to server: " + webSocket.url.absoluteString)
-        initWS()
-        initView()
+        onWSConnected()
     }
     func webSocket(_ webSocket: SRWebSocket!, didReceiveMessage message: Any!) {
         guard let msg = message as? String else {
@@ -301,6 +311,9 @@ extension SBDAnalyzer {
             return false
         }
         if (type == "initWS") {
+            guard configEnabled else {
+                return false
+            }
             let arr = [ json ]
             if let jsonData = try? JSONSerialization.data(withJSONObject: arr, options: .prettyPrinted) {
                 let jsonString = String(data: jsonData, encoding: .utf8)
@@ -308,13 +321,21 @@ extension SBDAnalyzer {
                 print("sbd_" + "send initWS " + jsonString!)
             }
         } else {
+            guard configEnabled || !self.checked else {
+                return false;
+            }
             print("sbd_" + "add to queue: " + type)
             queue.append(json)
+            startSendWorker()
         }
         return true
     }
     
     func sendViewEvent(eventData: [String: Any]) -> Bool {
+        guard configEnabled || !checked else {
+            return false;
+        }
+        
         var data = eventData;
         do {
             print("sbd_" + (eventData["eventName"] as! String));
@@ -373,19 +394,41 @@ extension SBDAnalyzer {
         }
     }
     func startSendWorker() {
-        print("sbd_" + "start sworker")
-        var timer = Timer.scheduledTimer(timeInterval: 0.5, target: self, selector: #selector(sendWorker), userInfo: nil, repeats: true)
-        
-    }
-    @objc func sendWorker() {
-        //print("sbd_" + "send worker")
-        guard queue.count > 0 && webSocket?.readyState == SRReadyState.OPEN && sessionReady else {
-            if queue.count == 0 {
-                //print("sbd_" + "queue has nothing to send")
-            }
-//            print("queue not send: websocket or session not ready")
+        guard workerTimer == nil else {
             return
         }
+        print("sbd_" + "start sworker")
+        workerTimer = Timer.scheduledTimer(timeInterval: 0.5, target: self, selector: #selector(sendWorker), userInfo: nil, repeats: true)
+        
+    }
+    func stopSendWorker() {
+        guard let _ = workerTimer else {
+            return
+        }
+        workerTimer.invalidate()
+        workerTimer = nil
+    }
+    @objc func sendWorker() {
+        print("sbd_" + "send worker " + String(notSendCount))
+        
+        guard queue.count > 0 && webSocket?.readyState == SRReadyState.OPEN && sessionReady else {
+            notSendCount += 1
+            if queue.count == 0 {
+                print("sbd_" + "queue has nothing to send")
+            } else {
+                print("queue not send: websocket or session not ready")
+            }
+            
+            
+            if notSendCount >= 30 {
+                stopSendWorker()
+            }
+            if notSendCount >= 20 && webSocket?.readyState != SRReadyState.OPEN {
+                webSocket?.open()
+            }
+            return
+        }
+        notSendCount = 0
         print("sbd_" + "send worker data")
         sendArray(arr: queue)
         queue = [[String: Any]]()
@@ -419,10 +462,15 @@ extension SBDAnalyzer {
         let urlRequest = URLRequest(url: url)
         let session = URLSession.shared
         let task = session.dataTask(with: urlRequest) { (data, urlResponse, error) in
+            if let error = error {
+                print(error.localizedDescription);
+                return;
+            }
             if let data = data {
                 let responseJSON = try? JSON(data: data)
                 if let status = responseJSON?["status"].string, status == "OK" {
                     self.visitorId = responseJSON?["data"][0]["id"].string
+                    self.saveVisitor(visitorId: self.visitorId)
                 }
             }
         }
@@ -430,7 +478,7 @@ extension SBDAnalyzer {
     }
     
     func loadVisitor() {
-        if let vId = UserDefaults.standard.value(forKey: "visitor") as? String {
+        if let vId = UserDefaults.standard.value(forKey: "visitorId") as? String {
             self.visitorId = vId
         }
     }
@@ -448,9 +496,19 @@ extension SBDAnalyzer {
         let urlRequest = URLRequest(url: url)
         let session = URLSession.shared
         let task = session.dataTask(with: urlRequest) { (data, urlResponse, error) in
+            if let error = error {
+                print(error.localizedDescription);
+                return;
+            }
             if let data = data {
                 let responseJSON = try? JSON(data: data)
+                let lastConfigEnabled = self.configEnabled
                 self.configEnabled = (responseJSON?["enable"].bool)! && (responseJSON?["partners"]["qos"].bool)!
+                self.configEnabled = true
+                self.checked = true;
+                if !lastConfigEnabled && self.configEnabled && self.webSocket?.readyState == SRReadyState.OPEN {
+                    self.onWSConnected()
+                }
             }
         }
         task.resume();
